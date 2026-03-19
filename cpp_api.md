@@ -259,7 +259,8 @@ LLMService(
     int context_size = 4096,        // Context window size
     int batch_size = 2048,          // Processing batch size
     bool embedding_only = false,    // Embedding-only mode
-    const std::vector<std::string> &lora_paths = {}  // LoRA adapters
+    const std::vector<std::string> &lora_paths = {}, // LoRA adapters
+    const std::string &mmproj_path = "" // Multimodal projector file path
 );
 
 // using a builder (returns LLMService*)
@@ -273,6 +274,7 @@ LLMServiceBuilder()
     .batchSize(int val)
     .embeddingOnly(bool val)
     .loraPaths(const std::vector<std::string>& paths)
+    .mmprojPath(const std::string& path)
     .build()
 ```
 

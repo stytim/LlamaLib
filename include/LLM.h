@@ -159,8 +159,9 @@ public:
     /// @param batch_size Batch size for processing
     /// @param embedding_only Whether to run in embedding-only mode
     /// @param lora_paths Vector of paths to LoRA adapter files
+    /// @param mmproj_path Path to the multimodal projector file for image support
     /// @return Command line string with all parameters
-    static std::string LLM_args_to_command(const std::string &model_path, int num_slots = 1, int num_threads = -1, int num_GPU_layers = 0, bool flash_attention = false, int context_size = 4096, int batch_size = 2048, bool embedding_only = false, const std::vector<std::string> &lora_paths = {});
+    static std::string LLM_args_to_command(const std::string &model_path, int num_slots = 1, int num_threads = -1, int num_GPU_layers = 0, bool flash_attention = false, int context_size = 4096, int batch_size = 2048, bool embedding_only = false, const std::vector<std::string> &lora_paths = {}, const std::string &mmproj_path = "");
 
 protected:
     /// @brief Build JSON for template application

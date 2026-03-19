@@ -45,7 +45,7 @@ public:
     /// @param batch_size Processing batch size
     /// @param embedding_only Whether to run in embedding-only mode
     /// @param lora_paths Vector of paths to LoRA adapter files
-    LLMService(const std::string &model_path, int num_slots = 1, int num_threads = -1, int num_GPU_layers = 0, bool flash_attention = false, int context_size = 4096, int batch_size = 2048, bool embedding_only = false, const std::vector<std::string> &lora_paths = {});
+    LLMService(const std::string &model_path, int num_slots = 1, int num_threads = -1, int num_GPU_layers = 0, bool flash_attention = false, int context_size = 4096, int batch_size = 2048, bool embedding_only = false, const std::vector<std::string> &lora_paths = {}, const std::string &mmproj_path = "");
 
     /// @brief Destructor
     ~LLMService();
@@ -265,8 +265,9 @@ extern "C"
     /// @param embedding_only Whether embedding-only mode
     /// @param lora_count Number of LoRA paths provided
     /// @param lora_paths Array of LoRA file paths
+    /// @param mmproj_path Path to multimodal projector file
     /// @return Pointer to new LLMService instance
-    UNDREAMAI_API LLMService *LLMService_Construct(const char *model_path, int num_slots = 1, int num_threads = -1, int num_GPU_layers = 0, bool flash_attention = false, int context_size = 4096, int batch_size = 2048, bool embedding_only = false, int lora_count = 0, const char **lora_paths = nullptr);
+    UNDREAMAI_API LLMService *LLMService_Construct(const char *model_path, int num_slots = 1, int num_threads = -1, int num_GPU_layers = 0, bool flash_attention = false, int context_size = 4096, int batch_size = 2048, bool embedding_only = false, int lora_count = 0, const char **lora_paths = nullptr, const char *mmproj_path = nullptr);
 
     /// @brief Create LLMService from command string (C API)
     /// @param params_string Command line parameter string

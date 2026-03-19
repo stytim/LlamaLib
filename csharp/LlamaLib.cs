@@ -99,7 +99,8 @@ namespace UndreamAI.LlamaLib
             int batchSize = 2048,
             [MarshalAs(UnmanagedType.I1)] bool embeddingOnly = false,
             int loraCount = 0,
-            IntPtr loraPaths = default);
+            IntPtr loraPaths = default,
+            [MarshalAs(UnmanagedType.LPStr)] string mmprojPath = null);
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate IntPtr LLMService_From_Command_Delegate([MarshalAs(UnmanagedType.LPStr)] string paramsString);
@@ -312,8 +313,9 @@ namespace UndreamAI.LlamaLib
             int batchSize = 2048,
             bool embeddingOnly = false,
             int loraCount = 0,
-            IntPtr loraPaths = default
-        ) => CallWithStatus(() => LLMService_Construct_Internal(modelPath, numSlots, numThreads, numGpuLayers, flashAttention, contextSize, batchSize, embeddingOnly, loraCount, loraPaths));
+            IntPtr loraPaths = default,
+            string mmprojPath = null
+        ) => CallWithStatus(() => LLMService_Construct_Internal(modelPath, numSlots, numThreads, numGpuLayers, flashAttention, contextSize, batchSize, embeddingOnly, loraCount, loraPaths, mmprojPath));
         public IntPtr LLMService_From_Command(string paramsString) => CallWithStatus(() => LLMService_From_Command_Internal(paramsString));
         public IntPtr LLMService_Command(IntPtr llm) => CallWithStatus(() => LLMService_Command_Internal(llm));
         public IntPtr LLMClient_Construct(IntPtr llm) => CallWithStatus(() => LLMClient_Construct_Internal(llm));
@@ -464,7 +466,8 @@ namespace UndreamAI.LlamaLib
             int batchSize = 2048,
             [MarshalAs(UnmanagedType.I1)] bool embeddingOnly = false,
             int loraCount = 0,
-            IntPtr loraPaths = default);
+            IntPtr loraPaths = default,
+            [MarshalAs(UnmanagedType.LPStr)] string mmprojPath = null);
 
         [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "LLMService_From_Command")]
         public static extern IntPtr LLMService_From_Command_Static([MarshalAs(UnmanagedType.LPStr)] string paramsString);
@@ -601,7 +604,7 @@ namespace UndreamAI.LlamaLib
             LLM_Status_Code_Internal = () => LLM_Status_Code_Static();
             LLM_Status_Message_Internal = () => LLM_Status_Message_Static();
             LLM_Embedding_Size_Internal = (llm) => LLM_Embedding_Size_Static(llm);
-            LLMService_Construct_Internal = (modelPath, numSlots, numThreads, numGpuLayers, flashAttention, contextSize, batchSize, embeddingOnly, loraCount, loraPaths) => LLMService_Construct_Static(modelPath, numSlots, numThreads, numGpuLayers, flashAttention, contextSize, batchSize, embeddingOnly, loraCount, loraPaths);
+            LLMService_Construct_Internal = (modelPath, numSlots, numThreads, numGpuLayers, flashAttention, contextSize, batchSize, embeddingOnly, loraCount, loraPaths, mmprojPath) => LLMService_Construct_Static(modelPath, numSlots, numThreads, numGpuLayers, flashAttention, contextSize, batchSize, embeddingOnly, loraCount, loraPaths, mmprojPath);
             LLMService_From_Command_Internal = (paramsString) => LLMService_From_Command_Static(paramsString);
             LLMService_Command_Internal = (llm) => LLMService_Command_Static(llm);
             LLMClient_Construct_Internal = (llm) => LLMClient_Construct_Static(llm);
@@ -672,7 +675,8 @@ namespace UndreamAI.LlamaLib
             int batchSize = 2048,
             [MarshalAs(UnmanagedType.I1)] bool embeddingOnly = false,
             int loraCount = 0,
-            IntPtr loraPaths = default) => CreateLLMWithFallback(() => LLMService_Construct_Internal_Single(modelPath, numSlots, numThreads, numGpuLayers, flashAttention, contextSize, batchSize, embeddingOnly, loraCount, loraPaths));
+            IntPtr loraPaths = default,
+            [MarshalAs(UnmanagedType.LPStr)] string mmprojPath = null) => CreateLLMWithFallback(() => LLMService_Construct_Internal_Single(modelPath, numSlots, numThreads, numGpuLayers, flashAttention, contextSize, batchSize, embeddingOnly, loraCount, loraPaths, mmprojPath));
 
         public IntPtr LLMService_From_Command_Internal([MarshalAs(UnmanagedType.LPStr)] string paramsString) => CreateLLMWithFallback(() => LLMService_From_Command_Internal_Single(paramsString));
 

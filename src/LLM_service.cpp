@@ -14,9 +14,9 @@
 
 LLMService::LLMService() {}
 
-LLMService::LLMService(const std::string &model_path, int num_slots, int num_threads, int num_GPU_layers, bool flash_attention, int context_size, int batch_size, bool embedding_only, const std::vector<std::string> &lora_paths)
+LLMService::LLMService(const std::string &model_path, int num_slots, int num_threads, int num_GPU_layers, bool flash_attention, int context_size, int batch_size, bool embedding_only, const std::vector<std::string> &lora_paths, const std::string &mmproj_path)
 {
-    init(LLM::LLM_args_to_command(model_path, num_slots, num_threads, num_GPU_layers, flash_attention, context_size, batch_size, embedding_only, lora_paths));
+    init(LLM::LLM_args_to_command(model_path, num_slots, num_threads, num_GPU_layers, flash_attention, context_size, batch_size, embedding_only, lora_paths, mmproj_path));
 }
 
 LLMService *LLMService::from_params(const json &params_json)
@@ -744,7 +744,7 @@ bool LLMService_Supports_GPU()
     return llama_supports_gpu_offload();
 }
 
-LLMService *LLMService_Construct(const char *model_path, int num_slots, int num_threads, int num_GPU_layers, bool flash_attention, int context_size, int batch_size, bool embedding_only, int lora_count, const char **lora_paths)
+LLMService *LLMService_Construct(const char *model_path, int num_slots, int num_threads, int num_GPU_layers, bool flash_attention, int context_size, int batch_size, bool embedding_only, int lora_count, const char **lora_paths, const char *mmproj_path)
 {
     std::vector<std::string> lora_paths_vector;
     if (lora_paths != nullptr && lora_count > 0)
@@ -754,7 +754,8 @@ LLMService *LLMService_Construct(const char *model_path, int num_slots, int num_
             lora_paths_vector.push_back(std::string(lora_paths[i]));
         }
     }
-    LLMService* llmService = new LLMService(model_path, num_slots, num_threads, num_GPU_layers, flash_attention, context_size, batch_size, embedding_only, lora_paths_vector);
+    std::string mmproj_path_str = mmproj_path != nullptr ? std::string(mmproj_path) : "";
+    LLMService* llmService = new LLMService(model_path, num_slots, num_threads, num_GPU_layers, flash_attention, context_size, batch_size, embedding_only, lora_paths_vector, mmproj_path_str);
     if (get_status_code() != 0)
     {
         if (llmService != nullptr) delete llmService;

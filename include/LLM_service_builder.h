@@ -16,6 +16,7 @@ private:
     int batch_size_ = 2048;
     bool embedding_only_ = false;
     std::vector<std::string> lora_paths_ = {};
+    std::string mmproj_path_ = "";
 
 public:
     LLMServiceBuilder& model(const std::string& path) { 
@@ -63,6 +64,11 @@ public:
         return *this; 
     }
     
+    LLMServiceBuilder& mmprojPath(const std::string& path) { 
+        mmproj_path_ = path; 
+        return *this; 
+    }
+    
     LLMService* build() {
         LLMService* service = new LLMService(
             model_path_, 
@@ -73,7 +79,8 @@ public:
             context_size_, 
             batch_size_, 
             embedding_only_, 
-            lora_paths_
+            lora_paths_,
+            mmproj_path_
         );
         return service;
     }

@@ -9,7 +9,7 @@ namespace UndreamAI.LlamaLib
         public LLMService(string modelPath, int numSlots = 1,
                           int numThreads = -1, int numGpuLayers = 0,
                           bool flashAttention = false, int contextSize = 4096,
-                          int batchSize = 2048, bool embeddingOnly = false, string[] loraPaths = null)
+                          int batchSize = 2048, bool embeddingOnly = false, string[] loraPaths = null, string mmprojPath = null)
         {
             if (string.IsNullOrEmpty(modelPath))
                 throw new ArgumentNullException(nameof(modelPath));
@@ -20,7 +20,7 @@ namespace UndreamAI.LlamaLib
             {
                 llamaLib = new LlamaLib(numGpuLayers > 0);
                 llm = CreateLLM(llamaLib, modelPath, numSlots, numThreads, numGpuLayers,
-                    flashAttention, contextSize, batchSize, embeddingOnly, loraPaths);
+                    flashAttention, contextSize, batchSize, embeddingOnly, loraPaths, mmprojPath);
             }
             catch
             {
@@ -59,7 +59,7 @@ namespace UndreamAI.LlamaLib
 
         public static IntPtr CreateLLM(LlamaLib llamaLib, string modelPath, int numSlots, int numThreads,
             int numGpuLayers, bool flashAttention, int contextSize, int batchSize,
-            bool embeddingOnly, string[] loraPaths)
+            bool embeddingOnly, string[] loraPaths, string mmprojPath = null)
         {
             IntPtr loraPathsPtr = IntPtr.Zero;
             int loraPathCount = 0;
@@ -100,7 +100,7 @@ namespace UndreamAI.LlamaLib
                 var llm = llamaLib.LLMService_Construct(
                     modelPath ?? string.Empty, numSlots, numThreads, numGpuLayers,
                     flashAttention, contextSize, batchSize, embeddingOnly,
-                    loraPathCount, loraPathsPtr);
+                    loraPathCount, loraPathsPtr, mmprojPath);
 
                 if (llm == IntPtr.Zero)
                     throw new InvalidOperationException("Failed to create LLMService");

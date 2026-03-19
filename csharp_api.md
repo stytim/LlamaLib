@@ -287,7 +287,8 @@ public LLMService(
     int contextSize = 4096,        // Context window size
     int batchSize = 2048,          // Processing batch size
     bool embeddingOnly = false,    // Embedding-only mode
-    string[] loraPaths = null      // LoRA adapters
+    string[] loraPaths = null,     // LoRA adapters
+    string mmprojPath = null       // Multimodal projector file path
 );
 ```
 

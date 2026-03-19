@@ -324,7 +324,12 @@ namespace UndreamAI.LlamaLib
                 {
                     var content = new StringContent(body.ToString(), Encoding.UTF8, "application/json");
                     var response = await _httpClient.PostAsync(url, content);
-                    response.EnsureSuccessStatusCode();
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        string errorBody = await response.Content.ReadAsStringAsync();
+                        throw new HttpRequestException(
+                            $"HTTP {(int)response.StatusCode} ({response.ReasonPhrase}) from {url}. Body: {TruncateForError(errorBody)}");
+                    }
                     return await response.Content.ReadAsStringAsync();
                 }
                 catch (Exception ex)
@@ -339,6 +344,15 @@ namespace UndreamAI.LlamaLib
             }
 
             throw lastException ?? new Exception("Request failed after retries");
+        }
+
+        protected static string TruncateForError(string value, int maxLength = 512)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return "<empty>";
+            }
+            return value.Length <= maxLength ? value : value.Substring(0, maxLength) + "...";
         }
 
         public virtual void Dispose()
@@ -517,7 +531,7 @@ namespace UndreamAI.LlamaLib
         /// </summary>
         public void AddUserMessage(Newtonsoft.Json.Linq.JToken content)
         {
-            _history.Add(new ChatMessage("user", content));
+            _history.Add(CreateStructuredMessage("user", content));
         }
 
         /// <summary>
@@ -670,7 +684,7 @@ namespace UndreamAI.LlamaLib
 
                 if (addToHistory)
                 {
-                    _history.Add(new ChatMessage("user", userContent));
+                    _history.Add(CreateStructuredMessage("user", userContent));
                 }
             }
 
@@ -730,12 +744,14 @@ namespace UndreamAI.LlamaLib
                     var result = JObject.Parse(httpResponse);
                     response = result["choices"]?[0]?["message"]?["content"]?.ToString() ?? "";
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Multimodal requests require chat-completions format.
                     if (ContainsMultimodalContent(messages))
                     {
-                        throw new InvalidOperationException("Multimodal requests require /v1/chat/completions support on the server.");
+                        throw new InvalidOperationException(
+                            $"Multimodal request to /v1/chat/completions failed. " +
+                            $"Ensure a vision model + matching mmproj are loaded. Details: {ex.Message}", ex);
                     }
 
                     // Fallback to /completion endpoint with prompt
@@ -789,11 +805,13 @@ namespace UndreamAI.LlamaLib
                 response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                 response.EnsureSuccessStatusCode();
             }
-            catch
+            catch (Exception ex)
             {
                 if (ContainsMultimodalContent(requestBody["messages"] as JArray))
                 {
-                    throw new InvalidOperationException("Multimodal streaming requests require /v1/chat/completions support on the server.");
+                    throw new InvalidOperationException(
+                        $"Multimodal streaming request to /v1/chat/completions failed. " +
+                        $"Ensure a vision model + matching mmproj are loaded. Details: {ex.Message}", ex);
                 }
                 // Fallback to regular completion endpoint
                 return await StreamCompletionAsync(requestBody, callback, cancellationToken);
@@ -848,6 +866,66 @@ namespace UndreamAI.LlamaLib
             if (token == null || token.Type == JTokenType.Null) return true;
             if (token.Type != JTokenType.String) return false;
             return string.IsNullOrWhiteSpace(token.ToString());
+        }
+
+        private static ChatMessage CreateStructuredMessage(string role, JToken content)
+        {
+            string compactContent = BuildCompactHistoryContent(content);
+            var message = new ChatMessage(role, compactContent);
+            TrySetStructuredContent(message, content);
+            return message;
+        }
+
+        private static bool TrySetStructuredContent(ChatMessage message, JToken content)
+        {
+            // Some builds expose content as JToken; older ones keep string-only payloads.
+            var prop = message.GetType().GetProperty("content");
+            if (prop == null || !prop.CanWrite) return false;
+            if (!typeof(JToken).IsAssignableFrom(prop.PropertyType)) return false;
+            prop.SetValue(message, content ?? JValue.CreateNull(), null);
+            return true;
+        }
+
+        private static string BuildCompactHistoryContent(JToken content)
+        {
+            if (content == null || content.Type == JTokenType.Null) return string.Empty;
+            if (content.Type == JTokenType.String) return content.ToString();
+
+            if (content is JArray parts)
+            {
+                var sb = new StringBuilder();
+                foreach (var part in parts)
+                {
+                    string type = part?["type"]?.ToString() ?? string.Empty;
+                    if (type == "text")
+                    {
+                        string text = part?["text"]?.ToString();
+                        if (!string.IsNullOrEmpty(text))
+                        {
+                            if (sb.Length > 0) sb.Append(' ');
+                            sb.Append(text);
+                        }
+                    }
+                    else if (type == "image_url")
+                    {
+                        if (sb.Length > 0) sb.Append(' ');
+                        sb.Append("[image]");
+                    }
+                    else if (type == "input_audio")
+                    {
+                        if (sb.Length > 0) sb.Append(' ');
+                        sb.Append("[audio]");
+                    }
+                }
+
+                string compact = sb.ToString().Trim();
+                if (!string.IsNullOrEmpty(compact)) return compact;
+            }
+
+            // Fallback for unexpected shapes; avoid massive history entries.
+            const int maxLen = 2048;
+            string serialized = content.ToString(Newtonsoft.Json.Formatting.None);
+            return serialized.Length <= maxLen ? serialized : serialized.Substring(0, maxLen) + "...";
         }
 
         private static bool ContainsMultimodalContent(JArray messages)

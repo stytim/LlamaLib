@@ -624,7 +624,20 @@ namespace LLMUnity
     public class ChatMessage : UndreamAI.LlamaLib.ChatMessage
     {
         public ChatMessage(string role, string content) : base(role, content) {}
-        public ChatMessage(string role, Newtonsoft.Json.Linq.JToken content) : base(role, content) {}
+        public ChatMessage(string role, Newtonsoft.Json.Linq.JToken content)
+            : base(role, content?.ToString(Newtonsoft.Json.Formatting.None) ?? string.Empty)
+        {
+            TrySetStructuredContent(this, content);
+        }
         public ChatMessage(UndreamAI.LlamaLib.ChatMessage other) : base(other.role, other.content) {}
+
+        private static void TrySetStructuredContent(UndreamAI.LlamaLib.ChatMessage message, Newtonsoft.Json.Linq.JToken content)
+        {
+            // Some builds expose content as JToken; older ones keep string-only payloads.
+            var prop = message.GetType().GetProperty("content");
+            if (prop == null || !prop.CanWrite) return;
+            if (!typeof(Newtonsoft.Json.Linq.JToken).IsAssignableFrom(prop.PropertyType)) return;
+            prop.SetValue(message, content ?? JValue.CreateNull(), null);
+        }
     }
 }

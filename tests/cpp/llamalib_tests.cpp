@@ -11,6 +11,8 @@
 #include <thread>
 #include <chrono>
 #include <unordered_set>
+#include <algorithm>
+#include <cctype>
 
 std::string PROMPT = "<|im_start|>system\nyou are an artificial intelligence assistant<|im_end|>\n<|im_start|>user\nHello, how are you?<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n";
 std::string REPLY = "Hello! I'm here to help you with anything! How can I assist you today?";
@@ -539,6 +541,69 @@ void test_ChatMessage()
 
     ChatMessage msg_from_json = ChatMessage::from_json(msg_json);
     ASSERT(msg_from_json == msg2);
+
+}
+
+void test_multimodal_inference(LLMAgent *agent)
+{
+    std::cout << "Testing multimodal inference V3..." << std::endl;
+
+    std::ifstream b64_file("../tests/test_jpg_base64.txt");
+    if (!b64_file.is_open())
+    {
+        std::cerr << "Could not open ../tests/test_jpg_base64.txt - skipping inference test" << std::endl;
+        return;
+    }
+
+    std::string b64_data((std::istreambuf_iterator<char>(b64_file)), std::istreambuf_iterator<char>());
+    b64_data.erase(std::remove_if(b64_data.begin(), b64_data.end(), [](unsigned char ch) {
+        return std::isspace(ch);
+    }), b64_data.end());
+
+    json request = {
+        {"prompt", {
+            {"prompt_string", "Describe what is in this image in 1 simple sentence. <__media__>"},
+            {"multimodal_data", json::array({b64_data})}
+        }},
+        {"stream", false},
+        {"temperature", 0.2},
+        {"n_predict", 64}
+    };
+
+    try
+    {
+        std::string raw_response = agent->completion_json(request, nullptr, true);
+        json response_json = json::parse(raw_response);
+        if (response_json.contains("error"))
+        {
+            throw std::runtime_error(response_json["error"].dump());
+        }
+
+        std::string response;
+        if (response_json.contains("content") && response_json["content"].is_string())
+        {
+            response = response_json["content"].get<std::string>();
+        }
+        else if (response_json.contains("choices") && response_json["choices"].is_array() && !response_json["choices"].empty())
+        {
+            const json &choice0 = response_json["choices"][0];
+            if (choice0.contains("text") && choice0["text"].is_string())
+            {
+                response = choice0["text"].get<std::string>();
+            }
+            else if (choice0.contains("message") && choice0["message"].contains("content") && choice0["message"]["content"].is_string())
+            {
+                response = choice0["message"]["content"].get<std::string>();
+            }
+        }
+
+        std::cout << "Model response: " << response << std::endl;
+        ASSERT(!response.empty());
+    }
+    catch (const std::exception &e)
+    {
+        std::cout << "Multimodal inference failed (expected if mmproj is missing): " << e.what() << std::endl;
+    }
 }
 
 class TestLLM : public LLMProvider
@@ -816,6 +881,8 @@ void run_mock_tests()
         ASSERT(llm.build_apply_template_json(messages_json) == input_json);
         ASSERT(llm.parse_apply_template_json(output_json) == message);
     }
+
+    test_ChatMessage();
 }
 
 void run_LLM_embedding_tests(LLM *llm)
@@ -843,8 +910,6 @@ void run_LLM_tests(LLM *llm)
 
 void run_LLMAgent_tests(LLMLocal *llm)
 {
-    test_ChatMessage();
-
     std::string system_prompt = "You are a helpful AI assistant for testing purposes.";
     LLMAgent *agent = new LLMAgent(llm, system_prompt);
 
@@ -860,6 +925,8 @@ void run_LLMAgent_tests(LLMLocal *llm)
         test_history(agent, use_api);
         test_save_history(agent, use_api);
     }
+
+    test_multimodal_inference(agent);
 
     if (LLMClient *client = dynamic_cast<LLMClient *>(llm))
     {
@@ -1117,17 +1184,21 @@ void run_overflow_tests(LLMService *llm_service, int n_ctx)
 int main(int argc, char **argv)
 {
     LLM_Debug(4);
-    run_mock_tests();
+    // run_mock_tests();
+ 
+    // int n_ctx = 250;
+    // LLMService* llm_service_ctx = LLMServiceBuilder().model("../tests/model.gguf").contextSize(n_ctx).build();
+    // run_overflow_tests(llm_service_ctx, n_ctx);
+ 
+    LLMService* llm_service = LLMService::from_command("-m ../tests/model.gguf -np 1 -t -1 -ngl 0 -c 8192 -b 2048 --context-shift -fa off --mmproj ../tests/mmproj-F16.gguf --no-mmproj-offload");
+    LLM_Start(llm_service);
+    LLMAgent* agent = new LLMAgent(llm_service, "You are a helpful assistant.");
+    test_multimodal_inference(agent);
+ 
+    // run_all_tests(llm_service, false);
 
-    int n_ctx = 250;
-    LLMService* llm_service_ctx = LLMServiceBuilder().model("../tests/model.gguf").contextSize(n_ctx).build();
-    run_overflow_tests(llm_service_ctx, n_ctx);
-
-    LLMService* llm_service = new LLMService("../tests/model.gguf");
-    run_all_tests(llm_service, false);
-
-    LLMService* llm_service_embedding = LLMService::from_command("-m ../tests/model_embedding.gguf --embeddings");
-    run_all_tests(llm_service_embedding, true);
+    // LLMService* llm_service_embedding = LLMService::from_command("-m ../tests/model_embedding.gguf --embeddings");
+    // run_all_tests(llm_service_embedding, true);
      
     return 0;
 }

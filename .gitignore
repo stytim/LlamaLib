@@ -21,3 +21,5 @@ html
 main
 server
 conversation_history.json
+/.cache
+.DS_Store

@@ -54,7 +54,7 @@ using LibHandle = void *; ///< Unix library handle type
     M(LLMService_Registry, void, LLMProviderRegistry *)                                                           \
     M(LLMService_InjectErrorState, void, ErrorState *)                                                            \
     M(LLMService_Supports_GPU, bool)                                                                              \
-    M(LLMService_Construct, LLMProvider *, const char *, int, int, int, bool, int, int, bool, int, const char **) \
+    M(LLMService_Construct, LLMProvider *, const char *, int, int, int, bool, int, int, bool, int, const char **, const char *) \
     M(LLMService_From_Command, LLMProvider *, const char *)
 
 /// @brief Runtime loader for LLM libraries
@@ -77,8 +77,9 @@ public:
     /// @param batch_size Processing batch size
     /// @param embedding_only Whether to run in embedding-only mode
     /// @param lora_paths Vector of paths to LoRA adapter files
+    /// @param mmproj_path Path to the multimodal projector file for image support
     /// @details Creates and initializes a runtime with the specified parameters
-    LLMService(const std::string &model_path, int num_slots = 1, int num_threads = -1, int num_GPU_layers = 0, bool flash_attention = false, int context_size = 4096, int batch_size = 2048, bool embedding_only = false, const std::vector<std::string> &lora_paths = {});
+    LLMService(const std::string &model_path, int num_slots = 1, int num_threads = -1, int num_GPU_layers = 0, bool flash_attention = false, int context_size = 4096, int batch_size = 2048, bool embedding_only = false, const std::vector<std::string> &lora_paths = {}, const std::string &mmproj_path = "");
 
     /// @brief Destructor
     ~LLMService();

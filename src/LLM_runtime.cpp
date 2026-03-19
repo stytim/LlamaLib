@@ -2,6 +2,14 @@
 
 //============================= LIBRARY LOADING =============================//
 
+static bool command_has_device_arg(const std::string &command)
+{
+    return command.find(" --device ") != std::string::npos ||
+           command.find(" --device=") != std::string::npos ||
+           command.find(" -dev ") != std::string::npos ||
+           command.find(" -dev=") != std::string::npos;
+}
+
 const std::string platform_name()
 {
 #if defined(_WIN32)
@@ -278,8 +286,33 @@ bool LLMService::create_LLM_library_backend(const std::string &command, const st
 
             LLMService_Registry(&LLMProviderRegistry::instance());
             LLMService_InjectErrorState(&ErrorStateRegistry::get_error_state());
-            llm = (LLMProvider *)LLMService_From_Command(command.c_str());
-            if (llm == nullptr || get_status_code() != 0)
+
+            std::vector<std::string> command_attempts = {command};
+#if defined(__APPLE__)
+            // If no device is specified, retry once with CPU-only device selection.
+            // This avoids hard failures when Metal initialization is unavailable.
+            if (!command_has_device_arg(command))
+            {
+                command_attempts.push_back(command + " --device none");
+            }
+#endif
+
+            bool loaded = false;
+            for (size_t attempt_idx = 0; attempt_idx < command_attempts.size(); ++attempt_idx)
+            {
+                if (attempt_idx > 0)
+                {
+                    std::cerr << "Retrying backend load with command override: " << command_attempts[attempt_idx] << std::endl;
+                }
+                llm = (LLMProvider *)LLMService_From_Command(command_attempts[attempt_idx].c_str());
+                if (llm != nullptr && get_status_code() == 0)
+                {
+                    loaded = true;
+                    break;
+                }
+            }
+
+            if (!loaded)
             {
                 std::cerr << "Failed to construct LLM (error: " << get_status_code() << "): " << get_status_message() << std::endl;
                 if (handle)

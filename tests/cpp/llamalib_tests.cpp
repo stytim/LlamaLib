@@ -1190,7 +1190,33 @@ int main(int argc, char **argv)
     // LLMService* llm_service_ctx = LLMServiceBuilder().model("../tests/model.gguf").contextSize(n_ctx).build();
     // run_overflow_tests(llm_service_ctx, n_ctx);
  
-    LLMService* llm_service = LLMService::from_command("-m ../tests/model.gguf -np 1 -t -1 -ngl 0 -c 8192 -b 2048 --context-shift -fa off --mmproj ../tests/mmproj-F16.gguf --no-mmproj-offload");
+    std::vector<std::string> startup_commands = {
+        // Prefer accelerated path when available.
+        "-m ../tests/model.gguf -np 1 -t -1 -ngl 99 -c 8192 -b 2048 --context-shift -fa on --mmproj ../tests/mmproj-F16.gguf",
+        // Fallback path for environments without usable GPU/Metal context.
+        "-m ../tests/model.gguf -np 1 -t -1 -ngl 0 -c 8192 -b 2048 --context-shift -fa off --mmproj ../tests/mmproj-F16.gguf --no-mmproj-offload --device none"
+    };
+
+    LLMService *llm_service = nullptr;
+    for (const std::string &cmd : startup_commands)
+    {
+        std::cout << "Trying startup command: " << cmd << std::endl;
+        llm_service = LLMService::from_command(cmd);
+        if (llm_service != nullptr && LLM_Status_Code() == 0)
+        {
+            break;
+        }
+        if (llm_service != nullptr)
+        {
+            LLM_Delete(llm_service);
+            llm_service = nullptr;
+        }
+    }
+    if (llm_service == nullptr || LLM_Status_Code() != 0)
+    {
+        std::cerr << "Failed to initialize multimodal service after fallback attempts." << std::endl;
+        return 1;
+    }
     LLM_Start(llm_service);
     LLMAgent* agent = new LLMAgent(llm_service, "You are a helpful assistant.");
     test_multimodal_inference(agent);
